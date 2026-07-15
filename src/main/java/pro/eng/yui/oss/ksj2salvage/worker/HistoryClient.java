@@ -24,7 +24,10 @@ public class HistoryClient {
 
     public Optional<OsmNode> fetchVersion1(long nodeId) throws IOException {
         String url = String.format("https://api.openstreetmap.org/api/0.6/node/%d/history", nodeId);
-        Request request = new Request.Builder().url(url).build();
+        Request request = new Request.Builder()
+            .url(url)
+            .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
+            .build();
 
         int retries = 3;
         while (retries > 0) {

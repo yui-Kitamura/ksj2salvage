@@ -35,6 +35,7 @@ public class AdminAreaClient {
 
         Request request = new Request.Builder()
             .url("https://overpass-api.de/api/interpreter")
+            .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
             .post(okhttp3.RequestBody.create(query, okhttp3.MediaType.parse("text/plain")))
             .build();
 
