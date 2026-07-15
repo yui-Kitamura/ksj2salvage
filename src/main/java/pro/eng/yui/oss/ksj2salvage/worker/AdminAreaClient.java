@@ -40,13 +40,34 @@ public class AdminAreaClient {
             .post(new okhttp3.FormBody.Builder().add("data", query).build())
             .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("AdminArea API 失敗: " + response);
+        int maxRetries = 3;
+        int attempt = 0;
+        while (true) {
+            try (Response response = client.newCall(request).execute()) {
+                if (response.isSuccessful()) {
+                    String body = response.body().string();
+                    Osm osm = xmlMapper.readValue(body, Osm.class);
+                    return buildAdminAreaName(osm.getRelations());
+                }
+                log.warn("AdminArea API 失敗 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, response);
+                if (attempt >= maxRetries) {
+                    throw new IOException("AdminArea API 最終失敗: " + response);
+                }
+            } catch (IOException e) {
+                log.warn("AdminArea API 例外発生 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, e.getMessage());
+                if (attempt >= maxRetries) {
+                    throw e;
+                }
             }
-            String body = response.body().string();
-            Osm osm = xmlMapper.readValue(body, Osm.class);
-            return buildAdminAreaName(osm.getRelations());
+
+            attempt++;
+            try {
+                log.info("5秒待機してリトライします...");
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("待機中に割り込まれました", e);
+            }
         }
     }
 

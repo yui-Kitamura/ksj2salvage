@@ -49,20 +49,41 @@ public class OverpassClient {
             .post(new okhttp3.FormBody.Builder().add("data", query).build())
             .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Overpass API 失敗: " + response);
+        int maxRetries = 3;
+        int attempt = 0;
+        while (true) {
+            try (Response response = client.newCall(request).execute()) {
+                if (response.isSuccessful()) {
+                    String body = response.body().string();
+                    Osm osm = xmlMapper.readValue(body, Osm.class);
+                    List<OsmNode> nodes = osm.getNodes();
+
+                    // ID一覧を保存
+                    List<String> ids = nodes.stream().map(n -> String.valueOf(n.getId())).collect(Collectors.toList());
+                    Files.write(Paths.get(prefecture + ".overpass.tmp"), ids, StandardCharsets.UTF_8);
+
+                    log.info("取得件数: {}", nodes.size());
+                    return nodes;
+                }
+                log.warn("Overpass API 失敗 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, response);
+                if (attempt >= maxRetries) {
+                    throw new IOException("Overpass API 最終失敗: " + response);
+                }
+            } catch (IOException e) {
+                log.warn("Overpass API 例外発生 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, e.getMessage());
+                if (attempt >= maxRetries) {
+                    throw e;
+                }
             }
-            String body = response.body().string();
-            Osm osm = xmlMapper.readValue(body, Osm.class);
-            List<OsmNode> nodes = osm.getNodes();
 
-            // ID一覧を保存
-            List<String> ids = nodes.stream().map(n -> String.valueOf(n.getId())).collect(Collectors.toList());
-            Files.write(Paths.get(prefecture + ".overpass.tmp"), ids, StandardCharsets.UTF_8);
-
-            log.info("取得件数: {}", nodes.size());
-            return nodes;
+            attempt++;
+            try {
+                log.info("5秒待機してリトライします...");
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException("待機中に割り込まれました", e);
+            }
         }
     }
 }
