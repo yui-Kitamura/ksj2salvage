@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.eng.yui.oss.ksj2salvage.osm.Osm;
 import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
+import pro.eng.yui.oss.ksj2salvage.osm.OsmRelation;
 
 import java.io.IOException;
 import java.util.Comparator;
