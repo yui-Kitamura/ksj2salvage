@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 public class OscGenerator {
 
@@ -30,7 +31,9 @@ public class OscGenerator {
                 }
                 
                 // 追加タグ
-                writer.write(String.format("    <tag k=\"addr:full\" v=\"%s\"/>\n", escape(update.fullAddress())));
+                for (var entry : update.additionalTags().entrySet()) {
+                    writer.write(String.format("    <tag k=\"%s\" v=\"%s\"/>\n", escape(entry.getKey()), escape(entry.getValue())));
+                }
                 
                 writer.write("  </node>\n");
             }
@@ -49,5 +52,5 @@ public class OscGenerator {
                     .replace("'", "&apos;");
     }
 
-    public record NodeAddressUpdate(OsmNode node, String fullAddress) {}
+    public record NodeAddressUpdate(OsmNode node, Map<String, String> additionalTags) {}
 }

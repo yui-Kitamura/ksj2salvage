@@ -25,7 +25,7 @@ public class AdminAreaClient {
         this.xmlMapper = xmlMapper;
     }
 
-    public String fetchAdminAreaName(double lat, double lon) throws IOException {
+    public AdminAreaResult fetchAdminArea(double lat, double lon) throws IOException {
         String query = String.format(
             "[out:xml][timeout:30];\n" +
             "is_in(%f,%f)->.a;\n" +
@@ -46,7 +46,7 @@ public class AdminAreaClient {
                 if (response.isSuccessful()) {
                     String body = response.body().string();
                     Osm osm = xmlMapper.readValue(body, Osm.class);
-                    return buildAdminAreaName(osm.getRelations());
+                    return parseAdminArea(osm.getRelations());
                 }
                 log.warn("AdminArea API 失敗 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, response);
                 if (attempt >= maxRetries) {
@@ -70,7 +70,7 @@ public class AdminAreaClient {
         }
     }
 
-    private String buildAdminAreaName(List<OsmRelation> relations) {
+    private AdminAreaResult parseAdminArea(List<OsmRelation> relations) {
         Map<String, String> levelToName = relations.stream()
             .map(OsmRelation::getTagMap)
             .filter(tags -> tags.containsKey("admin_level") && tags.containsKey("name"))
@@ -80,22 +80,19 @@ public class AdminAreaClient {
                 (v1, v2) -> v1 // 重複時は最初を採用
             ));
 
-        // admin_level 7 または 8 (東京23区や政令市の区)
-        // 郡 (admin_level 6) は含めない場合が多いが、要件では 4, 6, 7, 8 を取得
-        // 一般的には 都道府県(4) + 市区町村(7) で構成
-        // 東京23区の場合は 7 が特別区名になる
         String pref = levelToName.get("4");
         String gun = levelToName.get("6");
         String city = levelToName.get("7");
         String ku = levelToName.get("8");
 
         StringBuilder sb = new StringBuilder();
-        // pref は addr:full に含めるか？ 要件例では「山梨県中央市...」
         if (pref != null) sb.append(pref);
         if (gun != null) sb.append(gun);
         if (city != null) sb.append(city);
         if (ku != null) sb.append(ku);
 
-        return sb.toString();
+        return new AdminAreaResult(sb.toString(), pref, city);
     }
+
+    public record AdminAreaResult(String fullName, String prefecture, String city) {}
 }

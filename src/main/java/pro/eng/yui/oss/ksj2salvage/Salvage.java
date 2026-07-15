@@ -10,6 +10,7 @@ import pro.eng.yui.oss.ksj2salvage.worker.*;
 import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -98,7 +99,8 @@ public class Salvage {
             }
 
             OsmNode v1Node = v1NodeOpt.get();
-            String ksj2ads = v1Node.getTagMap().get("KSJ2:ADS");
+            Map<String, String> v1Tags = v1Node.getTagMap();
+            String ksj2ads = v1Tags.get("KSJ2:ADS");
             if (ksj2ads == null || ksj2ads.isEmpty()) {
                 log.info(" -> スキップ (KSJ2:ADS タグなし)");
                 skippedCount++;
@@ -106,17 +108,42 @@ public class Salvage {
             }
 
             // 行政界取得
-            String adminArea = adminAreaClient.fetchAdminAreaName(node.getLat(), node.getLon());
-            if (adminArea == null || adminArea.isEmpty()) {
+            AdminAreaClient.AdminAreaResult adminArea = adminAreaClient.fetchAdminArea(node.getLat(), node.getLon());
+            if (adminArea.fullName() == null || adminArea.fullName().isEmpty()) {
                 log.info(" -> スキップ (行政界取得失敗)");
                 skippedCount++;
                 return Optional.empty();
             }
 
-            String fullAddress = adminArea + ksj2ads;
+            Map<String, String> additionalTags = new HashMap<>();
+            String fullAddress = adminArea.fullName() + ksj2ads;
+            additionalTags.put("addr:full", fullAddress);
+
+            // KSJ2:PubFacAdmin サルベージ
+            String pubFacAdmin = v1Tags.get("KSJ2:PubFacAdmin");
+            if (pubFacAdmin != null && !currentTags.containsKey("KSJ2:PubFacAdmin")) {
+                switch (pubFacAdmin) {
+                    case "民間" -> additionalTags.put("operator:type", "private");
+                    case "市区町村" -> {
+                        String op = "";
+                        if (adminArea.prefecture() != null) op += adminArea.prefecture();
+                        if (adminArea.city() != null) op += adminArea.city();
+                        if (!op.isEmpty()) {
+                            additionalTags.put("operator", op);
+                        }
+                    }
+                    case "都道府県" -> {
+                        if (adminArea.prefecture() != null) {
+                            additionalTags.put("operator", adminArea.prefecture());
+                        }
+                    }
+                    case "国", "その他" -> additionalTags.put("KSJ2:PubFacAdmin", pubFacAdmin);
+                }
+            }
+
             log.info(" -> OK: {}", fullAddress);
             successCount++;
-            return Optional.of(new OscGenerator.NodeAddressUpdate(node, fullAddress));
+            return Optional.of(new OscGenerator.NodeAddressUpdate(node, additionalTags));
 
         } catch (IOException e) {
             log.info(" -> FAIL (エラー: {})", e.getMessage());
