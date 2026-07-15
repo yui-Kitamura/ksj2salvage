@@ -79,10 +79,12 @@ public class Salvage {
     }
 
     private Optional<OscGenerator.NodeAddressUpdate> processNode(OsmNode node) {
+        log.info("[{}/{}] ノードを処理中: ID={}, Name={}", processedCount, totalCount, node.getId(), node.getTagMap().getOrDefault("name", "N/A"));
         try {
             // 現在 addr:* が存在するか (Overpassクエリでもフィルタしているが念のため)
             Map<String, String> currentTags = node.getTagMap();
             if (currentTags.keySet().stream().anyMatch(k -> k.startsWith("addr:"))) {
+                log.info(" -> スキップ (addr:* タグが既に存在します)");
                 skippedCount++;
                 return Optional.empty();
             }
@@ -90,6 +92,7 @@ public class Salvage {
             // History API から v1 取得
             Optional<OsmNode> v1NodeOpt = historyClient.fetchVersion1(node.getId());
             if (v1NodeOpt.isEmpty()) {
+                log.info(" -> スキップ (v1 取得失敗)");
                 skippedCount++;
                 return Optional.empty();
             }
@@ -97,6 +100,7 @@ public class Salvage {
             OsmNode v1Node = v1NodeOpt.get();
             String ksj2ads = v1Node.getTagMap().get("KSJ2:ADS");
             if (ksj2ads == null || ksj2ads.isEmpty()) {
+                log.info(" -> スキップ (KSJ2:ADS タグなし)");
                 skippedCount++;
                 return Optional.empty();
             }
@@ -104,15 +108,18 @@ public class Salvage {
             // 行政界取得
             String adminArea = adminAreaClient.fetchAdminAreaName(node.getLat(), node.getLon());
             if (adminArea == null || adminArea.isEmpty()) {
+                log.info(" -> スキップ (行政界取得失敗)");
                 skippedCount++;
                 return Optional.empty();
             }
 
             String fullAddress = adminArea + ksj2ads;
+            log.info(" -> OK: {}", fullAddress);
             successCount++;
             return Optional.of(new OscGenerator.NodeAddressUpdate(node, fullAddress));
 
         } catch (IOException e) {
+            log.info(" -> FAIL (エラー: {})", e.getMessage());
             log.error("Node {} の処理中にエラーが発生しました: {}", node.getId(), e.getMessage());
             errorCount++;
             return Optional.empty();
