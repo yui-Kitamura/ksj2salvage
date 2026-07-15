@@ -46,7 +46,6 @@ public class OverpassClient {
             .url("https://overpass-api.de/api/interpreter")
             .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
             .header("Accept", "application/osm3s+xml")
-            .header("Accept-Encoding", "gzip, deflate, br")
             .post(new okhttp3.FormBody.Builder().add("data", query).build())
             .build();
 
