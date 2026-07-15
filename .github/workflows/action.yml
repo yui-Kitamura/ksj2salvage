@@ -1,6 +1,11 @@
 name: actions
 author: yuiKitamura
 description: actions
+
+on:
+  push:
+  workflow_dispatch:
+
 runs:
   using: composite
   steps:
