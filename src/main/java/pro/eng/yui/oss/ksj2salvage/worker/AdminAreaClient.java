@@ -1,17 +1,16 @@
 package pro.eng.yui.oss.ksj2salvage.worker;
 
-import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import tools.jackson.dataformat.xml.XmlMapper;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import okhttp3.FormBody;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.eng.yui.oss.ksj2salvage.osm.Osm;
-import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
 import pro.eng.yui.oss.ksj2salvage.osm.OsmRelation;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -37,7 +36,7 @@ public class AdminAreaClient {
             .url("https://overpass-api.de/api/interpreter")
             .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
             .header("Accept", "application/osm3s+xml")
-            .post(new okhttp3.FormBody.Builder().add("data", query).build())
+            .post(new FormBody.Builder().add("data", query).build())
             .build();
 
         int maxRetries = 3;
