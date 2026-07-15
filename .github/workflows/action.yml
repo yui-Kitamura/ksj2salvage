@@ -1,28 +1,29 @@
 name: actions
-author: yuiKitamura
-description: actions
 
 on:
   push:
   workflow_dispatch:
 
-runs:
-  using: composite
-  steps:
-    - name: Setup Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '21'
-        cache: 'maven'
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Build with Maven
-      shell: bash
-      run: mvn clean package
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'maven'
 
-    - name: Upload JAR artifact
-      uses: actions/upload-artifact@v7
-      with:
-        name: ksj2salvage-jar
-        path: target/ksj2salvage-*.jar
+      - name: Build with Maven
+        run: mvn clean package
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ksj2salvage-jar
+          path: target/ksj2salvage-*.jar
         archive: 'false'
