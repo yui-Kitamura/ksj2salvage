@@ -27,8 +27,7 @@ public class HistoryClient {
         Request request = new Request.Builder()
             .url(url)
             .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
-            .header("Accept", "application/xml, */*")
-            .header("Accept-Encoding", "gzip, deflate, br")
+            .header("Accept", "application/xml")
             .build();
 
         int retries = 3;
