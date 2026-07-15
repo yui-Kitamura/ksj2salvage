@@ -30,7 +30,7 @@ public class AdminAreaClient {
         String query = String.format(
             "[out:xml][timeout:30];\n" +
             "is_in(%f,%f)->.a;\n" +
-            "rel(picker.a)[\"boundary\"=\"administrative\"][\"admin_level\"~\"^[4678]$\"];\n" +
+            "rel(pivot.a)[\"boundary\"=\"administrative\"][\"admin_level\"~\"^[4678]$\"];\n" +
             "out tags;", lat, lon);
 
         Request request = new Request.Builder()
