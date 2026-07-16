@@ -30,7 +30,8 @@ public class RetryUtils {
                 log.warn("Retry-After ヘッダの解析に失敗しました: {}. デフォルトの {} 秒待機します", retryAfter, defaultSeconds);
             }
         } else {
-            log.info("{} 秒待機してリトライします...", waitSeconds);
+            String host = response.request().url().host();
+            log.info("{} API429エラー。 {} 秒待機してリトライします...", host, waitSeconds);
         }
 
         if (waitSeconds > 0) {
