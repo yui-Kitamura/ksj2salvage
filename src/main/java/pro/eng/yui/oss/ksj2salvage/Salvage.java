@@ -5,6 +5,7 @@ import okhttp3.OkHttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
+import pro.eng.yui.oss.ksj2salvage.util.GeoUtils;
 import pro.eng.yui.oss.ksj2salvage.worker.*;
 
 import java.io.IOException;
@@ -32,6 +33,14 @@ public class Salvage {
     private int successCount = 0;
     private int skippedCount = 0;
     private int errorCount = 0;
+
+    // 階級別位置変化ノード数: 0 | 0-10 | 10-30 | 30-50 | 50-100 | 100-
+    private int dist0 = 0;
+    private int dist0_10 = 0;
+    private int dist10_30 = 0;
+    private int dist30_50 = 0;
+    private int dist50_100 = 0;
+    private int distAbove100 = 0;
 
     public Salvage() {
         this.client = new OkHttpClient.Builder()
@@ -108,6 +117,17 @@ public class Salvage {
             }
 
             OsmNode v1Node = v1NodeOpt.get();
+
+            // 位置の変化を検証
+            double distance = GeoUtils.calculateDistance(node.getLat(), node.getLon(), v1Node.getLat(), v1Node.getLon());
+            updateDistanceStats(distance);
+
+            if (distance >= 50.0) {
+                log.info(" -> スキップ (位置が大きく変化しています: {:.1f}m)", distance);
+                skippedCount++;
+                return Optional.empty();
+            }
+
             Map<String, String> v1Tags = v1Node.getTagMap();
             String ksj2ads = v1Tags.get("KSJ2:ADS");
             if (ksj2ads == null || ksj2ads.isEmpty()) {
@@ -127,6 +147,11 @@ public class Salvage {
             Map<String, String> additionalTags = new HashMap<>();
             String fullAddress = adminArea.fullName() + ksj2ads;
             additionalTags.put("addr:full", fullAddress);
+
+            // 10m以上の変化にfixmeタグ付与
+            if (distance >= 10.0) {
+                additionalTags.put("fixme", String.format("addr:fullを機械付与した時点でオリジナルと位置が%.1fm変化しています", distance));
+            }
 
             // KSJ2:PubFacAdmin サルベージ
             String pubFacAdmin = v1Tags.get("KSJ2:PubFacAdmin");
@@ -162,6 +187,22 @@ public class Salvage {
         }
     }
 
+    private void updateDistanceStats(double distance) {
+        if (distance == 0) {
+            dist0++;
+        } else if (distance < 10.0) {
+            dist0_10++;
+        } else if (distance < 30.0) {
+            dist10_30++;
+        } else if (distance < 50.0) {
+            dist30_50++;
+        } else if (distance < 100.0) {
+            dist50_100++;
+        } else {
+            distAbove100++;
+        }
+    }
+
     private void printSummary() {
         log.info("--- 処理完了 ---");
         log.info("取得件数: {}", totalCount);
@@ -169,5 +210,7 @@ public class Salvage {
         log.info("成功件数: {}", successCount);
         log.info("対象外件数: {}", skippedCount);
         log.info("API失敗件数: {}", errorCount);
+        log.info("階級別位置変化ノード数(m): 0:{} | 0-10:{} | 10-30:{} | 30-50:{} | 50-100:{} | 100-:{}",
+            dist0, dist0_10, dist10_30, dist30_50, dist50_100, distAbove100);
     }
 }
