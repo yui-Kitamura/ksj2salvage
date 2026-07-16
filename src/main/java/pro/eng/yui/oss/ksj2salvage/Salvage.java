@@ -64,7 +64,12 @@ public class Salvage {
         log.info("--- 処理開始: {} ---", prefecture);
 
         List<OscGenerator.NodeAddressUpdate> updates = new ArrayList<>();
-        List<OsmNode> targetNodes = overpassClient.fetchTargetNodes(prefecture);
+        List<OsmNode> targetNodes;
+        if("全国".equals(prefecture)) {
+            targetNodes = overpassClient.fetchTargetNodes();
+        }else {
+            targetNodes = overpassClient.fetchTargetNodes(prefecture);
+        }
         totalCount = targetNodes.size();
 
         for (OsmNode node : targetNodes) {

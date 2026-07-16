@@ -28,20 +28,37 @@ public class OverpassClient {
         this.xmlMapper = xmlMapper;
     }
 
+    public List<OsmNode> fetchTargetNodes() throws IOException {
+        String query = 
+                "[out:xml][timeout:3600];\n" +
+                "node\n" +
+                "  [source=KSJ2]\n" +
+                "  [amenity]\n" +
+                "  [!\"addr:full\"]\n" +
+                "  [!\"addr:neighbourhood\"]\n" +
+                "  [!\"KSJ2:ADS\"];\n" +
+                "out meta;";
+        return executeFetch(query, "全国");
+    }
+
     public List<OsmNode> fetchTargetNodes(String prefecture) throws IOException {
         String query = String.format(
-            "[out:xml][timeout:180];\n" +
-            "area[\"admin_level\"=\"4\"][\"name\"=\"%s\"]->.searchArea;\n" +
-            "node\n" +
-            "  [source=KSJ2]\n" +
-            "  [amenity]\n" +
-            "  [!\"addr:full\"]\n" +
-            "  [!\"addr:neighbourhood\"]\n" +
-            "  [!\"KSJ2:ADS\"]\n" +
-            "  (area.searchArea);\n" +
-            "out meta;", prefecture);
+                "[out:xml][timeout:180];\n" +
+                    "area[\"admin_level\"=\"4\"][\"name\"=\"%s\"]->.searchArea;\n" +
+                    "node\n" +
+                    "  [source=KSJ2]\n" +
+                    "  [amenity]\n" +
+                    "  [!\"addr:full\"]\n" +
+                    "  [!\"addr:neighbourhood\"]\n" +
+                    "  [!\"KSJ2:ADS\"]\n" +
+                    "  (area.searchArea);\n" +
+                    "out meta;", prefecture);
 
-        log.info("Overpass API に問い合わせ中 (都府県: {})...", prefecture);
+        return executeFetch(query, prefecture);
+    }
+
+    private List<OsmNode> executeFetch(String query, String saveLabel) throws IOException {
+        log.info("Overpass API に問い合わせ中 (対象: {})...", saveLabel);
         
         Request request = new Request.Builder()
             .url("https://overpass-api.de/api/interpreter")
@@ -62,7 +79,7 @@ public class OverpassClient {
 
                     // ID一覧を保存
                     List<String> ids = nodes.stream().map(n -> String.valueOf(n.getId())).collect(Collectors.toList());
-                    Files.write(Paths.get(prefecture + ".overpass.tmp"), ids, StandardCharsets.UTF_8);
+                    Files.write(Paths.get(saveLabel + ".overpass.tmp"), ids, StandardCharsets.UTF_8);
 
                     log.info("取得件数: {}", nodes.size());
                     return nodes;
