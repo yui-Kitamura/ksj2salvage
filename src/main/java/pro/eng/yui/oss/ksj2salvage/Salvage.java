@@ -69,6 +69,10 @@ public class Salvage {
 
         for (OsmNode node : targetNodes) {
             processedCount++;
+            try {
+                TimeUnit.SECONDS.sleep(1L);
+            } catch (InterruptedException ignore) {
+            }
             processNode(node).ifPresent(updates::add);
         }
 
