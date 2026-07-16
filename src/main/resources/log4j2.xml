@@ -3,7 +3,7 @@
     <Appenders>
         <!-- Standard Output (INFO only) -->
         <Console name="STDOUT" target="SYSTEM_OUT">
-            <PatternLayout pattern="%m%n"/>
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %m%n"/>
             <Filters>
                 <!-- Deny WARN and higher -->
                 <ThresholdFilter level="WARN" onMatch="DENY" onMismatch="NEUTRAL"/>
@@ -14,7 +14,7 @@
 
         <!-- Standard Error (WARN and higher) -->
         <Console name="STDERR" target="SYSTEM_ERR">
-            <PatternLayout pattern="[%p] %m%n"/>
+            <PatternLayout pattern="%d{HH:mm:ss.SSS}[%p] %m%n"/>
             <Filters>
                 <ThresholdFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
             </Filters>
