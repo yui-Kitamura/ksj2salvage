@@ -1,2 +1,2 @@
 @echo off
-java -jar ksj2salvage-0.2.2.jar %* >>output.log 2>>error.log
+java -jar ksj2salvage-0.2.3.jar %* >>output.log 2>>error.log
