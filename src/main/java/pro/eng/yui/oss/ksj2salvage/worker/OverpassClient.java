@@ -38,7 +38,7 @@ public class OverpassClient {
             "  [!\"addr:neighbourhood\"]\n" +
             "  [!\"KSJ2:ADS\"]\n" +
             "  (area.searchArea);\n" +
-            "out body;", prefecture);
+            "out meta;", prefecture);
 
         log.info("Overpass API に問い合わせ中 (都府県: {})...", prefecture);
         
