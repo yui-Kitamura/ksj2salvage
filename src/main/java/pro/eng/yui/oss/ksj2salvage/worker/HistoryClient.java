@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.eng.yui.oss.ksj2salvage.osm.Osm;
 import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
+import pro.eng.yui.oss.ksj2salvage.util.RetryUtils;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -45,7 +46,7 @@ public class HistoryClient {
                     retries--;
                     if (retries > 0) {
                         log.warn("History API リトライ中 ({}): 残り {} 回", nodeId, retries);
-                        Thread.sleep(2000);
+                        RetryUtils.waitForRetry(response, 2);
                     }
                 } else {
                     throw new IOException("History API 失敗: " + response);

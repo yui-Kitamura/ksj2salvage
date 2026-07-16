@@ -9,6 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.eng.yui.oss.ksj2salvage.osm.Osm;
 import pro.eng.yui.oss.ksj2salvage.osm.OsmRelation;
+import pro.eng.yui.oss.ksj2salvage.util.RetryUtils;
 
 import java.io.IOException;
 import java.util.List;
@@ -41,6 +42,7 @@ public class AdminAreaClient {
 
         int maxRetries = 3;
         int attempt = 0;
+        Response lastResponse = null;
         while (true) {
             try (Response response = client.newCall(request).execute()) {
                 if (response.isSuccessful()) {
@@ -52,17 +54,23 @@ public class AdminAreaClient {
                 if (attempt >= maxRetries) {
                     throw new IOException("AdminArea API 最終失敗: " + response);
                 }
+                lastResponse = response;
             } catch (IOException e) {
                 log.warn("AdminArea API 例外発生 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, e.getMessage());
                 if (attempt >= maxRetries) {
                     throw e;
                 }
+                lastResponse = null;
             }
 
             attempt++;
             try {
-                log.info("5秒待機してリトライします...");
-                Thread.sleep(5000);
+                if (lastResponse != null) {
+                    RetryUtils.waitForRetry(lastResponse, 5);
+                } else {
+                    log.info("5秒待機してリトライします...");
+                    Thread.sleep(5000);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IOException("待機中に割り込まれました", e);
