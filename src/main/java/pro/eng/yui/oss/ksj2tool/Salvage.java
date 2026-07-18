@@ -243,7 +243,7 @@ public class Salvage {
             updateDistanceStats(distance);
 
             if (distance >= 50.0) {
-                log.info(" -> スキップ (位置が大きく変化しています: {:.1f}m)", distance);
+                log.info(" -> スキップ (位置が大きく変化しています: {}m)", String.format("%.1f", distance));
                 skippedCount++;
                 return Optional.empty();
             }
