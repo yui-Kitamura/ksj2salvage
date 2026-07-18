@@ -2,6 +2,7 @@ name: actions
 
 on:
   push:
+  release:
   workflow_dispatch:
 
 jobs:
@@ -27,3 +28,10 @@ jobs:
           name: ksj2tool-jar
           path: target/ksj2tool-*.jar
           archive: 'false'
+          
+      - name: GH Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v3.0.1
+        with:
+          files: |
+            target/ksj2tool-*.jar
