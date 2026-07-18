@@ -148,8 +148,8 @@ public class Salvage {
             String fullAddress = adminArea.fullName() + ksj2ads;
             additionalTags.put("addr:full", fullAddress);
 
-            // 10m以上の変化にfixmeタグ付与
-            if (distance >= 10.0) {
+            // 30m以上の変化にfixmeタグ付与
+            if (distance >= 30.0) {
                 additionalTags.put("fixme", String.format("addr:fullを機械付与した時点でオリジナルと位置が%.1fm変化しています", distance));
             }
 
