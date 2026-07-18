@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>pro.eng.yui.oss</groupId>
-    <artifactId>ksj2salvage</artifactId>
+    <artifactId>ksj2tool</artifactId>
     <version>0.4.1</version>
 
     <properties>
@@ -65,7 +65,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>pro.eng.yui.oss.ksj2salvage.Salvage</mainClass>
+                                    <mainClass>pro.eng.yui.oss.ksj2tool.Salvage</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>

@@ -1,4 +1,4 @@
-package pro.eng.yui.oss.ksj2salvage.worker;
+package pro.eng.yui.oss.ksj2tool.worker;
 
 import tools.jackson.dataformat.xml.XmlMapper;
 import okhttp3.OkHttpClient;
@@ -7,9 +7,9 @@ import okhttp3.Response;
 import okhttp3.FormBody;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import pro.eng.yui.oss.ksj2salvage.osm.Osm;
-import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
-import pro.eng.yui.oss.ksj2salvage.util.RetryUtils;
+import pro.eng.yui.oss.ksj2tool.osm.Osm;
+import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
+import pro.eng.yui.oss.ksj2tool.util.RetryUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -62,7 +62,7 @@ public class OverpassClient {
         
         Request request = new Request.Builder()
             .url("https://overpass-api.de/api/interpreter")
-            .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
+            .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2tool)")
             .header("Accept", "application/osm3s+xml")
             .post(new FormBody.Builder().add("data", query).build())
             .build();

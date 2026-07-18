@@ -1,7 +1,7 @@
-package pro.eng.yui.oss.ksj2salvage.worker;
+package pro.eng.yui.oss.ksj2tool.worker;
 
-import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
-import pro.eng.yui.oss.ksj2salvage.osm.OsmTag;
+import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
+import pro.eng.yui.oss.ksj2tool.osm.OsmTag;
 
 import java.io.BufferedWriter;
 import java.io.IOException;

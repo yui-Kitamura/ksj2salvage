@@ -28,14 +28,14 @@ OpenStreetMap (OSM) の過去履歴 (v1) から `KSJ2:ADS` タグを取得し、
 mvn clean package
 ```
 
-`target/ksj2salvage-0.x.x.jar` (実行可能JAR) が生成されます。
+`target/ksj2tool-0.x.x.jar` (実行可能JAR) が生成されます。
 
 ## 使い方
 
 JARファイルを実行し、引数に対象の都道府県名を指定します。
 
 ```bash
-java -jar target/ksj2salvage-0.x.x.jar 東京都
+java -jar target/ksj2tool-0.x.x.jar 東京都
 ```
 
 ※ 引数は「東京都」「神奈川県」「山梨県」などのJIS表記で指定してください。

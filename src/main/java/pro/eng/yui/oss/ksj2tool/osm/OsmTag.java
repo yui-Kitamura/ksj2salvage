@@ -1,4 +1,4 @@
-package pro.eng.yui.oss.ksj2salvage.osm;
+package pro.eng.yui.oss.ksj2tool.osm;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import tools.jackson.dataformat.xml.annotation.JacksonXmlProperty;

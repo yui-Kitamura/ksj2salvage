@@ -1,12 +1,12 @@
-package pro.eng.yui.oss.ksj2salvage;
+package pro.eng.yui.oss.ksj2tool;
 
 import tools.jackson.dataformat.xml.XmlMapper;
 import okhttp3.OkHttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
-import pro.eng.yui.oss.ksj2salvage.util.GeoUtils;
-import pro.eng.yui.oss.ksj2salvage.worker.*;
+import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
+import pro.eng.yui.oss.ksj2tool.util.GeoUtils;
+import pro.eng.yui.oss.ksj2tool.worker.*;
 
 import java.io.IOException;
 import java.nio.file.Paths;

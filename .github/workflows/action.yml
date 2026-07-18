@@ -24,6 +24,6 @@ jobs:
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v7
         with:
-          name: ksj2salvage-jar
-          path: target/ksj2salvage-*.jar
+          name: ksj2tool-jar
+          path: target/ksj2tool-*.jar
           archive: 'false'

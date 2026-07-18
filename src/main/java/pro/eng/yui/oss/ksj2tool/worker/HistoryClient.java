@@ -1,4 +1,4 @@
-package pro.eng.yui.oss.ksj2salvage.worker;
+package pro.eng.yui.oss.ksj2tool.worker;
 
 import tools.jackson.dataformat.xml.XmlMapper;
 import okhttp3.OkHttpClient;
@@ -6,9 +6,9 @@ import okhttp3.Request;
 import okhttp3.Response;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import pro.eng.yui.oss.ksj2salvage.osm.Osm;
-import pro.eng.yui.oss.ksj2salvage.osm.OsmNode;
-import pro.eng.yui.oss.ksj2salvage.util.RetryUtils;
+import pro.eng.yui.oss.ksj2tool.osm.Osm;
+import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
+import pro.eng.yui.oss.ksj2tool.util.RetryUtils;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -27,7 +27,7 @@ public class HistoryClient {
         String url = String.format("https://api.openstreetmap.org/api/0.6/node/%d/history", nodeId);
         Request request = new Request.Builder()
             .url(url)
-            .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2salvage)")
+            .header("User-Agent", "KSJ2AddressSalvage/1.0 (https://github.com/yui-oss/ksj2tool)")
             .header("Accept", "application/xml")
             .build();
 
