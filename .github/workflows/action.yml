@@ -3,6 +3,7 @@ name: actions
 on:
   push:
   release:
+    types: [ published ]
   workflow_dispatch:
 
 jobs:
