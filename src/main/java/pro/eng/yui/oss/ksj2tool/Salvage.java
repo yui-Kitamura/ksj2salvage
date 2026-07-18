@@ -4,11 +4,14 @@ import tools.jackson.dataformat.xml.XmlMapper;
 import okhttp3.OkHttpClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import pro.eng.yui.oss.ksj2tool.osm.Osm;
 import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
+import pro.eng.yui.oss.ksj2tool.osm.OsmWay;
 import pro.eng.yui.oss.ksj2tool.util.GeoUtils;
 import pro.eng.yui.oss.ksj2tool.worker.*;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -57,29 +60,64 @@ public class Salvage {
     public static void main(String[] args) {
         if (args.length < 1) {
             System.err.println("引数に都府県名(JIS表記)を指定してください。例: 東京都");
+            System.err.println("オプション: [mode]");
+            System.err.println("  salvage:   現行の救済処理を実行");
+            System.err.println("  normalize: 正規化処理を実行 (未実装)");
+            System.err.println("  both:      両方を実行 (デフォルト)");
             System.exit(1);
         }
 
         String prefecture = args[0];
+        String mode = (args.length > 1) ? args[1] : "both";
+
         try {
-            new Salvage().run(prefecture);
+            new Salvage().run(prefecture, mode);
         } catch (Exception e) {
             log.error("致命的なエラーが発生しました: {}", e.getMessage(), e);
             System.exit(1);
         }
     }
 
-    public void run(String prefecture) throws IOException {
-        log.info("--- 処理開始: {} ---", prefecture);
+    public void run(String prefecture, String mode) throws IOException {
+        log.info("--- 処理開始: {} (Mode: {}) ---", prefecture, mode);
 
-        List<OscGenerator.NodeAddressUpdate> updates = new ArrayList<>();
-        List<OsmNode> targetNodes;
-        if("全国".equals(prefecture)) {
-            targetNodes = overpassClient.fetchTargetNodes();
-        }else {
-            targetNodes = overpassClient.fetchTargetNodes(prefecture);
+        List<OscGenerator.ObjectUpdate> updates = new ArrayList<>();
+
+        if ("salvage".equalsIgnoreCase(mode)) {
+            runSalvage(prefecture, updates);
+        } else if ("normalize".equalsIgnoreCase(mode)) {
+            runNormalize(prefecture, updates);
+        } else if ("both".equalsIgnoreCase(mode)) {
+            log.info("Running both salvage and normalize...");
+            runSalvage(prefecture, updates);
+            runNormalize(prefecture, updates);
+        } else {
+            log.warn("Unknown mode: {}. Defaulting to salvage.", mode);
+            runSalvage(prefecture, updates);
         }
+
+        if (!updates.isEmpty()) {
+            String suffix = mode.toLowerCase();
+            Path outputPath = Paths.get("output", prefecture + "_" + suffix + ".osc");
+            oscGenerator.generate(outputPath, updates);
+            log.info("Output generated: {}", outputPath.toAbsolutePath());
+        } else {
+            log.info("No updates found. Skip generating .osc file.");
+        }
+
+        printSummary();
+    }
+
+    private void runSalvage(String prefecture, List<OscGenerator.ObjectUpdate> updates) throws IOException {
+        Osm osm;
+        if("全国".equals(prefecture)) {
+            osm = overpassClient.fetchTargetNodes();
+        }else {
+            osm = overpassClient.fetchTargetNodes(prefecture);
+        }
+        List<OsmNode> targetNodes = osm.getNodes();
         totalCount = targetNodes.size();
+        processedCount = 0;
 
         for (OsmNode node : targetNodes) {
             processedCount++;
@@ -89,19 +127,82 @@ public class Salvage {
             }
             processNode(node).ifPresent(updates::add);
         }
-
-        if (!updates.isEmpty()) {
-            oscGenerator.generate(Paths.get("output", prefecture + ".osc"), updates);
-        }
-
-        printSummary();
     }
 
-    private Optional<OscGenerator.NodeAddressUpdate> processNode(OsmNode node) {
+    private void runNormalize(String prefecture, List<OscGenerator.ObjectUpdate> updates) throws IOException {
+        log.info("--- Normalize 処理開始 ---");
+        Osm osm;
+        if ("全国".equals(prefecture)) {
+            osm = overpassClient.fetchNormalizeTargets();
+        } else {
+            osm = overpassClient.fetchNormalizeTargets(prefecture);
+        }
+
+        List<OsmNode> targetNodes = osm.getNodes();
+        List<OsmWay> targetWays = osm.getWays();
+        int totalNodes = targetNodes.size();
+        int totalWays = targetWays.size();
+        totalCount = totalNodes + totalWays;
+        processedCount = 0;
+
+        log.info("Normalize対象: {} nodes, {} ways", totalNodes, totalWays);
+
+        for (OsmNode node : targetNodes) {
+            processedCount++;
+            try { TimeUnit.SECONDS.sleep(1L); } catch (InterruptedException ignore) {}
+            processNode(node).ifPresent(updates::add);
+        }
+
+        for (OsmWay way : targetWays) {
+            processedCount++;
+            try { TimeUnit.SECONDS.sleep(1L); } catch (InterruptedException ignore) {}
+            processWay(way).ifPresent(updates::add);
+        }
+        log.info("--- Normalize 処理完了 ---");
+    }
+
+    private Optional<OscGenerator.ObjectUpdate> processNode(OsmNode node) {
         log.info("[{}/{}] ノードを処理中: ID={}, Name={}", processedCount, totalCount, node.getId(), node.getTagMap().getOrDefault("name", "N/A"));
+        
+        // すでに KSJ2:ADS がある場合は履歴取得不要 (normalize のケース)
+        String currentAds = node.getTagMap().get("KSJ2:ADS");
+        if (currentAds != null && !currentAds.isEmpty()) {
+            return processWithAds(node.getId(), node.getLat(), node.getLon(), node.getTagMap(), currentAds, 0.0, node.getTagMap())
+                .map(tags -> new OscGenerator.NodeAddressUpdate(node, tags));
+        }
+
+        return processWithHistory(node.getId(), node.getLat(), node.getLon(), node.getTagMap(),
+            () -> historyClient.fetchNodeVersion1(node.getId()))
+            .map(tags -> new OscGenerator.NodeAddressUpdate(node, tags));
+    }
+
+    private Optional<OscGenerator.ObjectUpdate> processWay(OsmWay way) {
+        log.info("[{}/{}] ウェイを処理中: ID={}, Name={}", processedCount, totalCount, way.getId(), way.getTagMap().getOrDefault("name", "N/A"));
+        if (way.getCenter() == null) {
+            log.info(" -> スキップ (座標情報がありません)");
+            skippedCount++;
+            return Optional.empty();
+        }
+
+        // すでに KSJ2:ADS がある場合は履歴取得不要 (normalize のケース)
+        String currentAds = way.getTagMap().get("KSJ2:ADS");
+        if (currentAds != null && !currentAds.isEmpty()) {
+            return processWithAds(way.getId(), way.getCenter().getLat(), way.getCenter().getLon(), way.getTagMap(), currentAds, 0.0, way.getTagMap())
+                .map(tags -> new OscGenerator.WayAddressUpdate(way, tags));
+        }
+
+        return processWithHistory(way.getId(), way.getCenter().getLat(), way.getCenter().getLon(), way.getTagMap(),
+            () -> historyClient.fetchWayVersion1(way.getId()))
+            .map(tags -> new OscGenerator.WayAddressUpdate(way, tags));
+    }
+
+    private interface Version1Fetcher<T> {
+        Optional<T> fetch() throws IOException;
+    }
+
+    private <T> Optional<Map<String, String>> processWithHistory(long id, double lat, double lon, Map<String, String> currentTags, Version1Fetcher<T> fetcher) {
         try {
             // 現在 addr:* が存在するか (Overpassクエリでもフィルタしているが念のため)
-            Map<String, String> currentTags = node.getTagMap();
             if (currentTags.keySet().stream().anyMatch(k -> k.startsWith("addr:"))) {
                 log.info(" -> スキップ (addr:* タグが既に存在します)");
                 skippedCount++;
@@ -109,17 +210,36 @@ public class Salvage {
             }
 
             // History API から v1 取得
-            Optional<OsmNode> v1NodeOpt = historyClient.fetchVersion1(node.getId());
-            if (v1NodeOpt.isEmpty()) {
+            Optional<T> v1ObjOpt = fetcher.fetch();
+            if (v1ObjOpt.isEmpty()) {
                 log.info(" -> スキップ (v1 取得失敗)");
                 skippedCount++;
                 return Optional.empty();
             }
 
-            OsmNode v1Node = v1NodeOpt.get();
+            T v1Obj = v1ObjOpt.get();
+            double v1Lat, v1Lon;
+            Map<String, String> v1Tags;
+
+            if (v1Obj instanceof OsmNode v1Node) {
+                v1Lat = v1Node.getLat();
+                v1Lon = v1Node.getLon();
+                v1Tags = v1Node.getTagMap();
+            } else if (v1Obj instanceof OsmWay v1Way) {
+                if (v1Way.getCenter() == null) {
+                    log.info(" -> スキップ (v1 座標情報なし)");
+                    skippedCount++;
+                    return Optional.empty();
+                }
+                v1Lat = v1Way.getCenter().getLat();
+                v1Lon = v1Way.getCenter().getLon();
+                v1Tags = v1Way.getTagMap();
+            } else {
+                return Optional.empty();
+            }
 
             // 位置の変化を検証
-            double distance = GeoUtils.calculateDistance(node.getLat(), node.getLon(), v1Node.getLat(), v1Node.getLon());
+            double distance = GeoUtils.calculateDistance(lat, lon, v1Lat, v1Lon);
             updateDistanceStats(distance);
 
             if (distance >= 50.0) {
@@ -128,7 +248,6 @@ public class Salvage {
                 return Optional.empty();
             }
 
-            Map<String, String> v1Tags = v1Node.getTagMap();
             String ksj2ads = v1Tags.get("KSJ2:ADS");
             if (ksj2ads == null || ksj2ads.isEmpty()) {
                 log.info(" -> スキップ (KSJ2:ADS タグなし)");
@@ -136,8 +255,20 @@ public class Salvage {
                 return Optional.empty();
             }
 
+            return processWithAds(id, lat, lon, currentTags, ksj2ads, distance, v1Tags);
+
+        } catch (IOException e) {
+            log.info(" -> FAIL (エラー: {})", e.getMessage());
+            log.error("Object {} の処理中にエラーが発生しました: {}", id, e.getMessage());
+            errorCount++;
+            return Optional.empty();
+        }
+    }
+
+    private Optional<Map<String, String>> processWithAds(long id, double lat, double lon, Map<String, String> currentTags, String ksj2ads, double distance, Map<String, String> v1Tags) {
+        try {
             // 行政界取得
-            AdminAreaClient.AdminAreaResult adminArea = adminAreaClient.fetchAdminArea(node.getLat(), node.getLon());
+            AdminAreaClient.AdminAreaResult adminArea = adminAreaClient.fetchAdminArea(lat, lon);
             if (adminArea.fullName() == null || adminArea.fullName().isEmpty()) {
                 log.info(" -> スキップ (行政界取得失敗)");
                 skippedCount++;
@@ -177,11 +308,11 @@ public class Salvage {
 
             log.info(" -> OK: {}", fullAddress);
             successCount++;
-            return Optional.of(new OscGenerator.NodeAddressUpdate(node, additionalTags));
+            return Optional.of(additionalTags);
 
         } catch (IOException e) {
             log.info(" -> FAIL (エラー: {})", e.getMessage());
-            log.error("Node {} の処理中にエラーが発生しました: {}", node.getId(), e.getMessage());
+            log.error("Object {} の処理中にエラーが発生しました: {}", id, e.getMessage());
             errorCount++;
             return Optional.empty();
         }

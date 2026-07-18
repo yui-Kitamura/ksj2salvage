@@ -19,6 +19,10 @@ public class Osm {
     @JacksonXmlElementWrapper(useWrapping = false)
     private List<OsmRelation> relations = new ArrayList<>();
 
+    @JacksonXmlProperty(localName = "way")
+    @JacksonXmlElementWrapper(useWrapping = false)
+    private List<OsmWay> ways = new ArrayList<>();
+
     public List<OsmNode> getNodes() {
         return nodes;
     }
@@ -33,5 +37,13 @@ public class Osm {
 
     public void setRelations(List<OsmRelation> relations) {
         this.relations = relations;
+    }
+
+    public List<OsmWay> getWays() {
+        return ways;
+    }
+
+    public void setWays(List<OsmWay> ways) {
+        this.ways = ways;
     }
 }

@@ -1,6 +1,6 @@
 # KSJ2 Address Salvage Tool (KSJ2:ADS サルベージツール)
 
-OpenStreetMap (OSM) の過去履歴 (v1) から `KSJ2:ADS` タグを取得し、現在住所情報 (`addr:*`) を持たない KSJ2 由来の POI (Node) に対して `addr:full` を付与するための `.osc` (osmChange) ファイルを生成するツールです。
+OpenStreetMap (OSM) の過去履歴 (v1) または既存のタグから `KSJ2:ADS` タグを取得し、現在住所情報 (`addr:*`) を持たない KSJ2 由来の POI (Node および Way) に対して `addr:full` を付与するための `.osc` (osmChange) ファイルを生成するツールです。
 
 ## 目的
 
@@ -8,9 +8,10 @@ OpenStreetMap (OSM) の過去履歴 (v1) から `KSJ2:ADS` タグを取得し、
 
 ## 主な機能
 
-- **対象抽出**: Overpass API を使用して、指定された都道府県内で `source=KSJ2` かつ `amenity` タグを持ち、`addr:*` の住所情報を持たない Node を自動抽出します。
-- **履歴解析**: OSM History API を使用して、各ノードの Version 1 の情報を取得し、`KSJ2:ADS` (住所) や `KSJ2:PubFacAdmin` (管理者) タグをサルベージします。
-- **行政界特定**: ノードの現在位置から Overpass API を使用して現在の市区町村名を特定し、正確な `addr:full` を構築します。
+- **対象抽出 (Salvage)**: Overpass API を使用して、指定された都道府県内で `source=KSJ2` かつ `amenity` タグを持ち、`addr:*` および `KSJ2:ADS` の住所情報を持たない Node を自動抽出します。
+- **対象抽出 (Normalize)**: `KSJ2:ADS` タグは既に持っているが、`addr:*` の住所情報を持たない POI (Node および Way) を抽出します。
+- **履歴解析**: Salvage モードにおいて、OSM History API を使用して各オブジェクトの Version 1 の情報を取得し、`KSJ2:ADS` (住所) や `KSJ2:PubFacAdmin` (管理者) タグをサルベージします。
+- **行政界特定**: オブジェクトの現在位置から Overpass API を使用して現在の市区町村名を特定し、正確な `addr:full` を構築します。
 - **位置変化検証**: オリジナル (v1) と現在の位置を比較し、位置が大きく変化している場合の不適切なタグ付与を防止します。
 - **osmChange 出力**: JOSM等で読み込み・アップロード可能な `.osc` 形式で変更点を出力します。
 
@@ -32,18 +33,26 @@ mvn clean package
 
 ## 使い方
 
-JARファイルを実行し、引数に対象の都道府県名を指定します。
+JARファイルを実行し、引数に対象の都道府県名、オプションで実行モードを指定します。
 
 ```bash
-java -jar target/ksj2tool-0.x.x.jar 東京都
+java -jar target/ksj2tool-0.x.x.jar 東京都 [mode]
 ```
 
 ※ 引数は「東京都」「神奈川県」「山梨県」などのJIS表記で指定してください。
 ※ 「全国」を指定すると、全国を対象に処理を試みますが、APIのタイムアウトや負荷に注意してください。
 
+### 実行モード (mode)
+
+- **salvage**: 現行の救済処理（履歴からの取得）を実行します。
+- **normalize**: 正規化処理（既存タグからの生成）を実行します。
+- **both**: 両方を実行します (デフォルト)。
+
 ### 出力物
 
-- `output/都府県名.osc`: 生成された変更セットファイル。
+- `output/都道府県名_salvage.osc`: Salvage モード実行時の変更セットファイル。
+- `output/都道府県名_normalize.osc`: Normalize モード実行時の変更セットファイル。
+- `output/都道府県名_both.osc`: Both モード実行時の統合された変更セットファイル。
 - `都道府県名.overpass.tmp`: Overpass API で取得した対象 ID の一覧。
 
 ## 処理の仕様

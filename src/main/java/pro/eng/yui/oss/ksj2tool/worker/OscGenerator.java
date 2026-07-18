@@ -2,6 +2,7 @@ package pro.eng.yui.oss.ksj2tool.worker;
 
 import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
 import pro.eng.yui.oss.ksj2tool.osm.OsmTag;
+import pro.eng.yui.oss.ksj2tool.osm.OsmWay;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -13,33 +14,51 @@ import java.util.Map;
 
 public class OscGenerator {
 
-    public void generate(Path outputPath, List<NodeAddressUpdate> updates) throws IOException {
+    public void generate(Path outputPath, List<ObjectUpdate> updates) throws IOException {
         Files.createDirectories(outputPath.getParent());
         try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {
             writer.write("<?xml version='1.0' encoding='UTF-8'?>\n");
             writer.write("<osmChange version=\"0.6\" generator=\"KSJ2AddressSalvage\">\n");
             writer.write("<modify>\n");
-
-            for (NodeAddressUpdate update : updates) {
-                OsmNode node = update.node();
-                writer.write(String.format("  <node id=\"%d\" lat=\"%f\" lon=\"%f\" version=\"%d\">\n",
-                    node.getId(), node.getLat(), node.getLon(), node.getVersion()));
-                
-                // 既存タグの書き出し
-                for (OsmTag tag : node.getTags()) {
-                    writer.write(String.format("    <tag k=\"%s\" v=\"%s\"/>\n", escape(tag.getK()), escape(tag.getV())));
+            for (ObjectUpdate update : updates) {
+                if (update instanceof NodeAddressUpdate nodeUpdate) {
+                    writeNode(writer, nodeUpdate);
+                } else if (update instanceof WayAddressUpdate wayUpdate) {
+                    writeWay(writer, wayUpdate);
                 }
-                
-                // 追加タグ
-                for (var entry : update.additionalTags().entrySet()) {
-                    writer.write(String.format("    <tag k=\"%s\" v=\"%s\"/>\n", escape(entry.getKey()), escape(entry.getValue())));
-                }
-                
-                writer.write("  </node>\n");
             }
-
             writer.write("</modify>\n");
             writer.write("</osmChange>\n");
+        }
+    }
+
+    private void writeNode(BufferedWriter writer, NodeAddressUpdate update) throws IOException {
+        OsmNode node = update.node();
+        writer.write(String.format("  <node id=\"%d\" lat=\"%f\" lon=\"%f\" version=\"%d\">\n",
+            node.getId(), node.getLat(), node.getLon(), node.getVersion()));
+        writeTags(writer, node.getTags(), update.additionalTags());
+        writer.write("  </node>\n");
+    }
+
+    private void writeWay(BufferedWriter writer, WayAddressUpdate update) throws IOException {
+        OsmWay way = update.way();
+        writer.write(String.format("  <way id=\"%d\" version=\"%d\">\n",
+            way.getId(), way.getVersion()));
+        for (var nd : way.getNodes()) {
+            writer.write(String.format("    <nd ref=\"%d\"/>\n", nd.getRef()));
+        }
+        writeTags(writer, way.getTags(), update.additionalTags());
+        writer.write("  </way>\n");
+    }
+
+    private void writeTags(BufferedWriter writer, List<OsmTag> existingTags, Map<String, String> additionalTags) throws IOException {
+        // 既存タグの書き出し
+        for (OsmTag tag : existingTags) {
+            writer.write(String.format("    <tag k=\"%s\" v=\"%s\"/>\n", escape(tag.getK()), escape(tag.getV())));
+        }
+        // 追加タグ
+        for (var entry : additionalTags.entrySet()) {
+            writer.write(String.format("    <tag k=\"%s\" v=\"%s\"/>\n", escape(entry.getKey()), escape(entry.getValue())));
         }
     }
 
@@ -52,5 +71,7 @@ public class OscGenerator {
                     .replace("'", "&apos;");
     }
 
-    public record NodeAddressUpdate(OsmNode node, Map<String, String> additionalTags) {}
+    public interface ObjectUpdate {}
+    public record NodeAddressUpdate(OsmNode node, Map<String, String> additionalTags) implements ObjectUpdate {}
+    public record WayAddressUpdate(OsmWay way, Map<String, String> additionalTags) implements ObjectUpdate {}
 }

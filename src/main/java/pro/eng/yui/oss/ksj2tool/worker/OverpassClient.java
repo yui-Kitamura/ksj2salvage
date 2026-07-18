@@ -9,6 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pro.eng.yui.oss.ksj2tool.osm.Osm;
 import pro.eng.yui.oss.ksj2tool.osm.OsmNode;
+import pro.eng.yui.oss.ksj2tool.osm.OsmWay;
 import pro.eng.yui.oss.ksj2tool.util.RetryUtils;
 
 import java.io.IOException;
@@ -28,20 +29,20 @@ public class OverpassClient {
         this.xmlMapper = xmlMapper;
     }
 
-    public List<OsmNode> fetchTargetNodes() throws IOException {
+    public Osm fetchTargetNodes() throws IOException {
         String query = 
                 "[out:xml][timeout:3600];\n" +
                 "node\n" +
                 "  [source=KSJ2]\n" +
                 "  [amenity]\n" +
                 "  [!\"addr:full\"]\n" +
-                "  [!\"addr:neighbourhood\"]\n" +
+                "  [!\"addr:block_number\"]\n" +
                 "  [!\"KSJ2:ADS\"];\n" +
-                "out meta;";
+                "out meta center;";
         return executeFetch(query, "全国");
     }
 
-    public List<OsmNode> fetchTargetNodes(String prefecture) throws IOException {
+    public Osm fetchTargetNodes(String prefecture) throws IOException {
         String query = String.format(
                 "[out:xml][timeout:180];\n" +
                     "area[\"admin_level\"=\"4\"][\"name\"=\"%s\"]->.searchArea;\n" +
@@ -49,15 +50,38 @@ public class OverpassClient {
                     "  [source=KSJ2]\n" +
                     "  [amenity]\n" +
                     "  [!\"addr:full\"]\n" +
-                    "  [!\"addr:neighbourhood\"]\n" +
+                    "  [!\"addr:block_number\"]\n" +
                     "  [!\"KSJ2:ADS\"]\n" +
                     "  (area.searchArea);\n" +
-                    "out meta;", prefecture);
+                    "out meta center;", prefecture);
 
         return executeFetch(query, prefecture);
     }
 
-    private List<OsmNode> executeFetch(String query, String saveLabel) throws IOException {
+    public Osm fetchNormalizeTargets() throws IOException {
+        String query =
+                "[out:xml][timeout:3600];\n" +
+                "(\n" +
+                "  node[source=KSJ2][\"KSJ2:ADS\"][!\"addr:full\"][!\"addr:block_number\"];\n" +
+                "  way[source=KSJ2][\"KSJ2:ADS\"][!\"addr:full\"][!\"addr:block_number\"];\n" +
+                ");\n" +
+                "out meta center;";
+        return executeFetch(query, "全国_normalize");
+    }
+
+    public Osm fetchNormalizeTargets(String prefecture) throws IOException {
+        String query = String.format(
+                "[out:xml][timeout:300];\n" +
+                "area[\"admin_level\"=\"4\"][\"name\"=\"%s\"]->.searchArea;\n" +
+                "(\n" +
+                "  node[source=KSJ2][\"KSJ2:ADS\"][!\"addr:full\"][!\"addr:block_number\"](area.searchArea);\n" +
+                "  way[source=KSJ2][\"KSJ2:ADS\"][!\"addr:full\"][!\"addr:block_number\"](area.searchArea);\n" +
+                ");\n" +
+                "out meta center;", prefecture);
+        return executeFetch(query, prefecture + "_normalize");
+    }
+
+    private Osm executeFetch(String query, String saveLabel) throws IOException {
         log.info("Overpass API に問い合わせ中 (対象: {})...", saveLabel);
         
         Request request = new Request.Builder()
@@ -75,14 +99,14 @@ public class OverpassClient {
                 if (response.isSuccessful()) {
                     String body = response.body().string();
                     Osm osm = xmlMapper.readValue(body, Osm.class);
-                    List<OsmNode> nodes = osm.getNodes();
 
-                    // ID一覧を保存
-                    List<String> ids = nodes.stream().map(n -> String.valueOf(n.getId())).collect(Collectors.toList());
+                    // ID一覧を保存 (node, way)
+                    List<String> ids = osm.getNodes().stream().map(n -> "n" + n.getId()).collect(Collectors.toList());
+                    ids.addAll(osm.getWays().stream().map(w -> "w" + w.getId()).collect(Collectors.toList()));
                     Files.write(Paths.get(saveLabel + ".overpass.tmp"), ids, StandardCharsets.UTF_8);
 
-                    log.info("取得件数: {}", nodes.size());
-                    return nodes;
+                    log.info("取得件数: node={}, way={}", osm.getNodes().size(), osm.getWays().size());
+                    return osm;
                 }
                 log.warn("Overpass API 失敗 (試行 {}/{}): {}", attempt + 1, maxRetries + 1, response);
                 if (attempt >= maxRetries) {
@@ -102,7 +126,7 @@ public class OverpassClient {
                 if (lastResponse != null) {
                     RetryUtils.waitForRetry(lastResponse, 5);
                 } else {
-                    log.info("5秒待機してリトライします...");
+                    log.info("OverpassAPI 5秒待機してリトライします...");
                     Thread.sleep(5000);
                 }
             } catch (InterruptedException e) {
