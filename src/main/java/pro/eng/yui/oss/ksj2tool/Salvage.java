@@ -44,6 +44,7 @@ public class Salvage {
     private int dist30_50 = 0;
     private int dist50_100 = 0;
     private int distAbove100 = 0;
+    private int normalizedCount = 0;
 
     public Salvage() {
         this.client = new OkHttpClient.Builder()
@@ -167,6 +168,7 @@ public class Salvage {
         // すでに KSJ2:ADS がある場合は履歴取得不要 (normalize のケース)
         String currentAds = node.getTagMap().get("KSJ2:ADS");
         if (currentAds != null && !currentAds.isEmpty()) {
+            normalizedCount++;
             return processWithAds(node.getId(), node.getLat(), node.getLon(), node.getTagMap(), currentAds, 0.0, node.getTagMap())
                 .map(tags -> new OscGenerator.NodeAddressUpdate(node, tags));
         }
@@ -187,6 +189,7 @@ public class Salvage {
         // すでに KSJ2:ADS がある場合は履歴取得不要 (normalize のケース)
         String currentAds = way.getTagMap().get("KSJ2:ADS");
         if (currentAds != null && !currentAds.isEmpty()) {
+            normalizedCount++;
             return processWithAds(way.getId(), way.getCenter().getLat(), way.getCenter().getLon(), way.getTagMap(), currentAds, 0.0, way.getTagMap())
                 .map(tags -> new OscGenerator.WayAddressUpdate(way, tags));
         }
@@ -339,9 +342,10 @@ public class Salvage {
         log.info("取得件数: {}", totalCount);
         log.info("処理件数: {}", processedCount);
         log.info("成功件数: {}", successCount);
-        log.info("対象外件数: {}", skippedCount);
+        log.info("距離による除外件数: {}", skippedCount);
         log.info("API失敗件数: {}", errorCount);
         log.info("階級別位置変化ノード数(m): 0:{} | 0-10:{} | 10-30:{} | 30-50:{} | 50-100:{} | 100-:{}",
             dist0, dist0_10, dist10_30, dist30_50, dist50_100, distAbove100);
+        log.info("距離判定をしない件数: {}", normalizedCount);
     }
 }
