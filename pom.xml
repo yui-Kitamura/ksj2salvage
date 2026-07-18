@@ -6,7 +6,7 @@
 
     <groupId>pro.eng.yui.oss</groupId>
     <artifactId>ksj2tool</artifactId>
-    <version>0.5.0</version>
+    <version>0.6.0</version>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
