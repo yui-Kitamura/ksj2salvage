@@ -29,7 +29,7 @@ public class OverpassClient {
         this.xmlMapper = xmlMapper;
     }
 
-    public Osm fetchTargetNodes() throws IOException {
+    public Osm fetchTargetNodes(String customLabel) throws IOException {
         String query = 
                 "[out:xml][timeout:3600];\n" +
                 "node\n" +
@@ -39,10 +39,10 @@ public class OverpassClient {
                 "  [!\"addr:block_number\"]\n" +
                 "  [!\"KSJ2:ADS\"];\n" +
                 "out meta center;";
-        return executeFetch(query, "全国");
+        return executeFetch(query, customLabel);
     }
 
-    public Osm fetchTargetNodes(String prefecture) throws IOException {
+    public Osm fetchTargetNodes(String prefecture, String suffix) throws IOException {
         String query = String.format(
                 "[out:xml][timeout:180];\n" +
                     "area[\"admin_level\"=\"4\"][\"name\"=\"%s\"]->.searchArea;\n" +
@@ -55,7 +55,7 @@ public class OverpassClient {
                     "  (area.searchArea);\n" +
                     "out meta center;", prefecture);
 
-        return executeFetch(query, prefecture);
+        return executeFetch(query, prefecture + "_" + suffix);
     }
 
     public Osm fetchNormalizeTargets() throws IOException {

@@ -83,18 +83,30 @@ public class Salvage {
         log.info("--- 処理開始: {} (Mode: {}) ---", prefecture, mode);
 
         List<OscGenerator.ObjectUpdate> updates = new ArrayList<>();
+        totalCount = 0;
+        processedCount = 0;
 
         if ("salvage".equalsIgnoreCase(mode)) {
-            runSalvage(prefecture, updates);
+            Osm osm = fetchSalvageOsm(prefecture);
+            totalCount = osm.getNodes().size();
+            runSalvage(osm, updates);
         } else if ("normalize".equalsIgnoreCase(mode)) {
-            runNormalize(prefecture, updates);
+            Osm osm = fetchNormalizeOsm(prefecture);
+            totalCount = osm.getNodes().size() + osm.getWays().size();
+            runNormalize(osm, updates);
         } else if ("both".equalsIgnoreCase(mode)) {
             log.info("Running both salvage and normalize...");
-            runSalvage(prefecture, updates);
-            runNormalize(prefecture, updates);
+            Osm salvageOsm = fetchSalvageOsm(prefecture);
+            Osm normalizeOsm = fetchNormalizeOsm(prefecture);
+            totalCount = salvageOsm.getNodes().size() + normalizeOsm.getNodes().size() + normalizeOsm.getWays().size();
+
+            runSalvage(salvageOsm, updates);
+            runNormalize(normalizeOsm, updates);
         } else {
             log.warn("Unknown mode: {}. Defaulting to salvage.", mode);
-            runSalvage(prefecture, updates);
+            Osm osm = fetchSalvageOsm(prefecture);
+            totalCount = osm.getNodes().size();
+            runSalvage(osm, updates);
         }
 
         if (!updates.isEmpty()) {
@@ -109,17 +121,24 @@ public class Salvage {
         printSummary();
     }
 
-    private void runSalvage(String prefecture, List<OscGenerator.ObjectUpdate> updates) throws IOException {
-        Osm osm;
-        if("全国".equals(prefecture)) {
-            osm = overpassClient.fetchTargetNodes();
-        }else {
-            osm = overpassClient.fetchTargetNodes(prefecture);
+    private Osm fetchSalvageOsm(String prefecture) throws IOException {
+        if ("全国".equals(prefecture)) {
+            return overpassClient.fetchTargetNodes("全国_salvage");
+        } else {
+            return overpassClient.fetchTargetNodes(prefecture, "salvage");
         }
-        List<OsmNode> targetNodes = osm.getNodes();
-        totalCount = targetNodes.size();
-        processedCount = 0;
+    }
 
+    private Osm fetchNormalizeOsm(String prefecture) throws IOException {
+        if ("全国".equals(prefecture)) {
+            return overpassClient.fetchNormalizeTargets();
+        } else {
+            return overpassClient.fetchNormalizeTargets(prefecture);
+        }
+    }
+
+    private void runSalvage(Osm osm, List<OscGenerator.ObjectUpdate> updates) throws IOException {
+        List<OsmNode> targetNodes = osm.getNodes();
         for (OsmNode node : targetNodes) {
             processedCount++;
             try {
@@ -130,23 +149,12 @@ public class Salvage {
         }
     }
 
-    private void runNormalize(String prefecture, List<OscGenerator.ObjectUpdate> updates) throws IOException {
+    private void runNormalize(Osm osm, List<OscGenerator.ObjectUpdate> updates) throws IOException {
         log.info("--- Normalize 処理開始 ---");
-        Osm osm;
-        if ("全国".equals(prefecture)) {
-            osm = overpassClient.fetchNormalizeTargets();
-        } else {
-            osm = overpassClient.fetchNormalizeTargets(prefecture);
-        }
-
         List<OsmNode> targetNodes = osm.getNodes();
         List<OsmWay> targetWays = osm.getWays();
-        int totalNodes = targetNodes.size();
-        int totalWays = targetWays.size();
-        totalCount = totalNodes + totalWays;
-        processedCount = 0;
 
-        log.info("Normalize対象: {} nodes, {} ways", totalNodes, totalWays);
+        log.info("Normalize対象: {} nodes, {} ways", targetNodes.size(), targetWays.size());
 
         for (OsmNode node : targetNodes) {
             processedCount++;
