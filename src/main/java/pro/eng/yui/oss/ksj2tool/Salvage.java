@@ -297,23 +297,35 @@ public class Salvage {
 
             // KSJ2:PubFacAdmin サルベージ
             String pubFacAdmin = v1Tags.get("KSJ2:PubFacAdmin");
-            if (pubFacAdmin != null && !currentTags.containsKey("KSJ2:PubFacAdmin")) {
+            if (pubFacAdmin != null) {
                 switch (pubFacAdmin) {
-                    case "民間" -> additionalTags.put("operator:type", "private");
+                    case "民間" -> {
+                        if (!currentTags.containsKey("operator:type")) {
+                            additionalTags.put("operator:type", "private");
+                        }
+                    }
                     case "市区町村" -> {
-                        String op = "";
-                        if (adminArea.prefecture() != null) op += adminArea.prefecture();
-                        if (adminArea.city() != null) op += adminArea.city();
-                        if (!op.isEmpty()) {
-                            additionalTags.put("operator", op);
+                        if (!currentTags.containsKey("operator")) {
+                            String op = "";
+                            if (adminArea.prefecture() != null) op += adminArea.prefecture();
+                            if (adminArea.city() != null) op += adminArea.city();
+                            if (!op.isEmpty()) {
+                                additionalTags.put("operator", op);
+                            }
                         }
                     }
                     case "都道府県" -> {
-                        if (adminArea.prefecture() != null) {
-                            additionalTags.put("operator", adminArea.prefecture());
+                        if (!currentTags.containsKey("operator")) {
+                            if (adminArea.prefecture() != null) {
+                                additionalTags.put("operator", adminArea.prefecture());
+                            }
                         }
                     }
-                    case "国", "その他" -> additionalTags.put("KSJ2:PubFacAdmin", pubFacAdmin);
+                    case "国", "その他" -> {
+                        if (!currentTags.containsKey("KSJ2:PubFacAdmin")) {
+                            additionalTags.put("KSJ2:PubFacAdmin", pubFacAdmin);
+                        }
+                    }
                 }
             }
 
