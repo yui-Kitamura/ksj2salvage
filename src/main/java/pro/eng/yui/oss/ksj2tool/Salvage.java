@@ -178,12 +178,12 @@ public class Salvage {
         if (currentAds != null && !currentAds.isEmpty()) {
             normalizedCount++;
             return processWithAds(node.getId(), node.getLat(), node.getLon(), node.getTagMap(), currentAds, 0.0, node.getTagMap())
-                .map(tags -> new OscGenerator.NodeAddressUpdate(node, tags));
+                .map(result -> new OscGenerator.NodeAddressUpdate(node, result.additionalTags(), result.removeTags()));
         }
 
         return processWithHistory(node.getId(), node.getLat(), node.getLon(), node.getTagMap(),
             () -> historyClient.fetchNodeVersion1(node.getId()))
-            .map(tags -> new OscGenerator.NodeAddressUpdate(node, tags));
+            .map(result -> new OscGenerator.NodeAddressUpdate(node, result.additionalTags(), result.removeTags()));
     }
 
     private Optional<OscGenerator.ObjectUpdate> processWay(OsmWay way) {
@@ -199,19 +199,19 @@ public class Salvage {
         if (currentAds != null && !currentAds.isEmpty()) {
             normalizedCount++;
             return processWithAds(way.getId(), way.getCenter().getLat(), way.getCenter().getLon(), way.getTagMap(), currentAds, 0.0, way.getTagMap())
-                .map(tags -> new OscGenerator.WayAddressUpdate(way, tags));
+                .map(result -> new OscGenerator.WayAddressUpdate(way, result.additionalTags(), result.removeTags()));
         }
 
         return processWithHistory(way.getId(), way.getCenter().getLat(), way.getCenter().getLon(), way.getTagMap(),
             () -> historyClient.fetchWayVersion1(way.getId()))
-            .map(tags -> new OscGenerator.WayAddressUpdate(way, tags));
+            .map(result -> new OscGenerator.WayAddressUpdate(way, result.additionalTags(), result.removeTags()));
     }
 
     private interface Version1Fetcher<T> {
         Optional<T> fetch() throws IOException;
     }
 
-    private <T> Optional<Map<String, String>> processWithHistory(long id, double lat, double lon, Map<String, String> currentTags, Version1Fetcher<T> fetcher) {
+    private <T> Optional<ProcessResult> processWithHistory(long id, double lat, double lon, Map<String, String> currentTags, Version1Fetcher<T> fetcher) {
         try {
             // 現在 addr:* が存在するか (Overpassクエリでもフィルタしているが念のため)
             if (currentTags.keySet().stream().anyMatch(k -> k.startsWith("addr:"))) {
@@ -276,7 +276,7 @@ public class Salvage {
         }
     }
 
-    private Optional<Map<String, String>> processWithAds(long id, double lat, double lon, Map<String, String> currentTags, String ksj2ads, double distance, Map<String, String> v1Tags) {
+    private Optional<ProcessResult> processWithAds(long id, double lat, double lon, Map<String, String> currentTags, String ksj2ads, double distance, Map<String, String> v1Tags) {
         try {
             // 行政界取得
             AdminAreaClient.AdminAreaResult adminArea = adminAreaClient.fetchAdminArea(lat, lon);
@@ -287,8 +287,12 @@ public class Salvage {
             }
 
             Map<String, String> additionalTags = new HashMap<>();
+            List<String> removeTags = new ArrayList<>();
+
             String fullAddress = adminArea.fullName() + ksj2ads;
             additionalTags.put("addr:full", fullAddress);
+            removeTags.add("KSJ2:ADS");
+            removeTags.add("KSJ2:AdminArea");
 
             // 30m以上の変化にfixmeタグ付与
             if (distance >= 30.0) {
@@ -298,10 +302,12 @@ public class Salvage {
             // KSJ2:PubFacAdmin サルベージ
             String pubFacAdmin = v1Tags.get("KSJ2:PubFacAdmin");
             if (pubFacAdmin != null) {
+                boolean operatorAdded = false;
                 switch (pubFacAdmin) {
                     case "民間" -> {
                         if (!currentTags.containsKey("operator:type")) {
                             additionalTags.put("operator:type", "private");
+                            operatorAdded = true;
                         }
                     }
                     case "市区町村" -> {
@@ -311,6 +317,7 @@ public class Salvage {
                             if (adminArea.city() != null) op += adminArea.city();
                             if (!op.isEmpty()) {
                                 additionalTags.put("operator", op);
+                                operatorAdded = true;
                             }
                         }
                     }
@@ -318,6 +325,7 @@ public class Salvage {
                         if (!currentTags.containsKey("operator")) {
                             if (adminArea.prefecture() != null) {
                                 additionalTags.put("operator", adminArea.prefecture());
+                                operatorAdded = true;
                             }
                         }
                     }
@@ -327,11 +335,14 @@ public class Salvage {
                         }
                     }
                 }
+                if (operatorAdded || currentTags.containsKey("KSJ2:PubFacAdmin")) {
+                    removeTags.add("KSJ2:PubFacAdmin");
+                }
             }
 
             log.info(" -> OK: {}", fullAddress);
             successCount++;
-            return Optional.of(additionalTags);
+            return Optional.of(new ProcessResult(additionalTags, removeTags));
 
         } catch (IOException e) {
             log.info(" -> FAIL (エラー: {})", e.getMessage());
@@ -340,6 +351,8 @@ public class Salvage {
             return Optional.empty();
         }
     }
+
+    private record ProcessResult(Map<String, String> additionalTags, List<String> removeTags) {}
 
     private void updateDistanceStats(double distance) {
         if (distance == 0) {

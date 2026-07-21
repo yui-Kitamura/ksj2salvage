@@ -36,7 +36,7 @@ public class OscGenerator {
         OsmNode node = update.node();
         writer.write(String.format("  <node id=\"%d\" lat=\"%f\" lon=\"%f\" version=\"%d\">\n",
             node.getId(), node.getLat(), node.getLon(), node.getVersion()));
-        writeTags(writer, node.getTags(), update.additionalTags());
+        writeTags(writer, node.getTags(), update.additionalTags(), update.removeTags());
         writer.write("  </node>\n");
     }
 
@@ -47,13 +47,16 @@ public class OscGenerator {
         for (var nd : way.getNodes()) {
             writer.write(String.format("    <nd ref=\"%d\"/>\n", nd.getRef()));
         }
-        writeTags(writer, way.getTags(), update.additionalTags());
+        writeTags(writer, way.getTags(), update.additionalTags(), update.removeTags());
         writer.write("  </way>\n");
     }
 
-    private void writeTags(BufferedWriter writer, List<OsmTag> existingTags, Map<String, String> additionalTags) throws IOException {
-        // 既存タグの書き出し
+    private void writeTags(BufferedWriter writer, List<OsmTag> existingTags, Map<String, String> additionalTags, List<String> removeTags) throws IOException {
+        // 既存タグの書き出し (削除対象以外)
         for (OsmTag tag : existingTags) {
+            if (removeTags != null && removeTags.contains(tag.getK())) {
+                continue;
+            }
             writer.write(String.format("    <tag k=\"%s\" v=\"%s\"/>\n", escape(tag.getK()), escape(tag.getV())));
         }
         // 追加タグ
@@ -72,6 +75,6 @@ public class OscGenerator {
     }
 
     public interface ObjectUpdate {}
-    public record NodeAddressUpdate(OsmNode node, Map<String, String> additionalTags) implements ObjectUpdate {}
-    public record WayAddressUpdate(OsmWay way, Map<String, String> additionalTags) implements ObjectUpdate {}
+    public record NodeAddressUpdate(OsmNode node, Map<String, String> additionalTags, List<String> removeTags) implements ObjectUpdate {}
+    public record WayAddressUpdate(OsmWay way, Map<String, String> additionalTags, List<String> removeTags) implements ObjectUpdate {}
 }
