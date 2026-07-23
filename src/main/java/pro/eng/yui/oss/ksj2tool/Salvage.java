@@ -305,13 +305,17 @@ public class Salvage {
                 boolean operatorAdded = false;
                 switch (pubFacAdmin) {
                     case "民間" -> {
-                        if (!currentTags.containsKey("operator:type")) {
+                        if (currentTags.containsKey("operator:type")) {
+                            operatorAdded = true;
+                        } else {
                             additionalTags.put("operator:type", "private");
                             operatorAdded = true;
                         }
                     }
                     case "市区町村" -> {
-                        if (!currentTags.containsKey("operator")) {
+                        if (currentTags.containsKey("operator")) {
+                            operatorAdded = true;
+                        } else {
                             String op = "";
                             if (adminArea.prefecture() != null) op += adminArea.prefecture();
                             if (adminArea.city() != null) op += adminArea.city();
@@ -322,7 +326,9 @@ public class Salvage {
                         }
                     }
                     case "都道府県" -> {
-                        if (!currentTags.containsKey("operator")) {
+                        if (currentTags.containsKey("operator")) {
+                            operatorAdded = true;
+                        } else {
                             if (adminArea.prefecture() != null) {
                                 additionalTags.put("operator", adminArea.prefecture());
                                 operatorAdded = true;
@@ -335,7 +341,7 @@ public class Salvage {
                         }
                     }
                 }
-                if (operatorAdded || currentTags.containsKey("KSJ2:PubFacAdmin")) {
+                if (operatorAdded) {
                     removeTags.add("KSJ2:PubFacAdmin");
                 }
             }
